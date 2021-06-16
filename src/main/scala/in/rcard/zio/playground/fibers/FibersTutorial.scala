@@ -1,6 +1,6 @@
 package in.rcard.zio.playground.fibers
 
-import zio.{ExitCode, URIO, ZIO}
+import zio._
 
 object FibersTutorial extends zio.App {
 
@@ -14,6 +14,11 @@ object FibersTutorial extends zio.App {
     _ <- bathTime.debug(printThread)
     _ <- boilingWater.debug(printThread)
     _ <- preparingCoffee.debug(printThread)
+  } yield ()
+
+  def concurrentBathroomTimeAndBoilingWater(): ZIO[Any, Nothing, Unit] = for {
+    _ <- bathTime.debug(printThread).fork
+    _ <- boilingWater.debug(printThread)
   } yield ()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
