@@ -21,6 +21,14 @@ object FibersTutorial extends zio.App {
     _ <- boilingWater.debug(printThread)
   } yield ()
 
+  def concurrentWakeUpRoutine(): ZIO[Any, Nothing, Unit] = for {
+    bathFiber <- bathTime.debug(printThread).fork
+    boilingFiber <- boilingWater.debug(printThread).fork
+    zippedFiber = bathFiber.zip(boilingFiber)
+    _ <- zippedFiber.join.debug(printThread)
+    _ <- preparingCoffee.debug(printThread)
+  } yield ()
+
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    sequentialWakeUpRoutine().exitCode
+    concurrentWakeUpRoutine().exitCode
 }
