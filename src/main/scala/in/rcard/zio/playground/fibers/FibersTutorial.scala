@@ -44,6 +44,22 @@ object FibersTutorial extends zio.App {
     _ <- ZIO.succeed("Going to the Cafe with Alice").debug(printThread)
   } yield ()
 
+  val preparingCoffeeWithSleep =
+    preparingCoffee.debug(printThread) *>
+      ZIO.sleep(5.seconds) *>
+      ZIO.succeed("Coffee ready")
+
+  def concurrentWakeUpRoutineWithAliceCallingUsTooLate(): ZIO[Clock, Nothing, Unit] = for {
+    _ <- bathTime.debug(printThread)
+    _ <- boilingWater.debug(printThread)
+    coffeeFiber <- preparingCoffeeWithSleep.debug(printThread).fork.uninterruptible
+    result <- aliceCalling.debug(printThread).fork *> coffeeFiber.interrupt.debug(printThread)
+    _ <- result match {
+      case Exit.Success(value) => ZIO.succeed("Making breakfast at home").debug(printThread)
+      case _ => ZIO.succeed("Going to the Cafe with Alice").debug(printThread)
+    }
+  } yield ()
+
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    concurrentWakeUpRoutineWithAliceCall().exitCode
+    concurrentWakeUpRoutineWithAliceCallingUsTooLate().exitCode
 }
