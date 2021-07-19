@@ -15,18 +15,19 @@ import zio.{ExitCode, Has, RManaged, URIO, ZLayer}
 //
 // kafka-topics \
 //   --bootstrap-server localhost:9092 \
-//   --topic crypto \
+//   --topic updates \
 //   --create
 //
 // kafka-console-producer \
-//   --topic crypto \
+//   --topic updates \
 //   --broker-list localhost:9092 \
 //   --property parse.key=true \
 //   --property key.separator=,
 //
 object ZioKafka extends zio.App {
 
-  case class Crypto(name: String, price: Double)
+  // {ITA-ENG, 1-1}
+  case class Match(players: String, score: String)
 
   val consumerSettings: ConsumerSettings =
     ConsumerSettings(List("localhost:9092"))
@@ -39,7 +40,7 @@ object ZioKafka extends zio.App {
     ZLayer.fromManaged(managedConsumer)
 
   val stream: ZStream[Console with Consumer with Clock, Throwable, Unit] =
-    Consumer.subscribeAnd(Subscription.topics("crypto"))
+    Consumer.subscribeAnd(Subscription.topics("updates"))
       .plainStream(Serde.string, Serde.string)
       .tap(cr => console.putStrLn(s"| ${cr.key} | ${cr.value} |"))
       .map(_.offset)
