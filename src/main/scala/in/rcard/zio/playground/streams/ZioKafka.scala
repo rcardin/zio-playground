@@ -4,7 +4,7 @@ import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console
 import zio.console.Console
-import zio.kafka.consumer.{Consumer, ConsumerSettings, Subscription}
+import zio.kafka.consumer.{CommittableRecord, Consumer, ConsumerSettings, Subscription}
 import zio.kafka.serde.Serde
 import zio.stream.ZStream
 import zio.{ExitCode, Has, RManaged, URIO, ZLayer}
@@ -38,6 +38,10 @@ object ZioKafka extends zio.App {
 
   val consumer: ZLayer[Clock with Blocking, Throwable, Has[Consumer.Service]] =
     ZLayer.fromManaged(managedConsumer)
+
+  val matchesStreams: ZStream[Consumer, Throwable, CommittableRecord[String, String]] =
+    Consumer.subscribeAnd(Subscription.topics("updates"))
+      .plainStream(Serde.string, Serde.string)
 
   val stream: ZStream[Console with Consumer with Clock, Throwable, Unit] =
     Consumer.subscribeAnd(Subscription.topics("updates"))
