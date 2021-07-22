@@ -43,6 +43,14 @@ object ZioKafka extends zio.App {
     Consumer.subscribeAnd(Subscription.topics("updates"))
       .plainStream(Serde.string, Serde.string)
 
+  val itaMatchesStreams =
+    Consumer.subscribeAnd(Subscription.pattern("updates|.*ITA.*".r))
+      .plainStream(Serde.string, Serde.string)
+
+  val partitionedMatchesStreams =
+    Consumer.subscribeAnd(Subscription.manual("updates", 1))
+      .plainStream(Serde.string, Serde.string)
+
   val stream: ZStream[Console with Consumer with Clock, Throwable, Unit] =
     Consumer.subscribeAnd(Subscription.topics("updates"))
       .plainStream(Serde.string, Serde.string)
