@@ -1,5 +1,7 @@
 package in.rcard.zio.playground.streams
 
+import org.apache.kafka.common.serialization.Serdes
+import org.apache.kafka.connect.json.{JsonDeserializer, JsonSerializer}
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.{ExitCode, Has, RManaged, URIO, ZIO, ZLayer, console}
@@ -26,23 +28,41 @@ import zio.stream.ZStream
 object ZioKafka extends zio.App {
 
   // {ITA-ENG, 1-1}
-  case class Players(p1: String, p2: String)
+  case class Teams(p1: String, p2: String)
+  case class Score(p1: Int, p2: Int)
 
-  case class Match(players: String, score: String)
+  // {
+  //    players: [
+  //      {
+  //        "name": "ITA",
+  //        "score": 3
+  //      },
+  //      {
+  //        "name": "ENG",
+  //        "score": 2
+  //      }
+  //    ]
+  // }
+  case class Player(name: String, score: Int)
+  case class Match(players: Array[Player])
 
-  val playersSerde: Serde[Any, Players] = Serde.string.inmapM { playersAsString =>
+  val teamsSerde: Serde[Any, Teams] = Serde.string.inmapM { teamsAsString =>
     ZIO.effect {
-      if (!playersAsString.matches("...-...")) {
-        throw new IllegalArgumentException(s"$playersAsString doesn't represents two players")
+      if (!teamsAsString.matches("...-...")) {
+        throw new IllegalArgumentException(s"$teamsAsString doesn't represents two teams")
       }
-      val split = playersAsString.split("-")
-      Players(split(0), split(1))
+      val split = teamsAsString.split("-")
+      Teams(split(0), split(1))
     }
-  } { players =>
+  } { teams =>
     ZIO.succeed {
-      s"${players.p1}-${players.p2}"
+      s"${teams.p1}-${teams.p2}"
     }
   }
+
+  val matchSerde: Serde[Any, Nothing] = Serde(
+    Serdes.serdeFrom(JsonSerializer[Match], JsonDeserializer[Match])
+  )
 
   val consumerSettings: ConsumerSettings =
     ConsumerSettings(List("localhost:9092"))
