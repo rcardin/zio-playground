@@ -9,6 +9,8 @@ import zio.kafka.serde.Serde
 import zio.stream.ZStream
 import zio.{ExitCode, Has, RManaged, URIO, ZIO, ZLayer, console}
 
+import java.util.UUID
+
 // Commands for Kafka broker
 //
 // docker exec -it broker bash
@@ -83,9 +85,9 @@ object ZioKafka extends zio.App {
   val consumer: ZLayer[Clock with Blocking, Throwable, Has[Consumer.Service]] =
     ZLayer.fromManaged(managedConsumer)
 
-  val matchesStreams: ZStream[Consumer, Throwable, CommittableRecord[String, String]] =
+  val matchesStreams: ZStream[Consumer, Throwable, CommittableRecord[UUID, Match]] =
     Consumer.subscribeAnd(Subscription.topics("updates"))
-      .plainStream(Serde.string, Serde.string)
+      .plainStream(Serde.uuid, matchSerde)
 
   val itaMatchesStreams: SubscribedConsumerFromEnvironment =
     Consumer.subscribeAnd(Subscription.pattern("updates|.*ITA.*".r))
