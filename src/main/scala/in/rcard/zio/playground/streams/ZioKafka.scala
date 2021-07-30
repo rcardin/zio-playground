@@ -1,14 +1,13 @@
 package in.rcard.zio.playground.streams
 
-import org.apache.kafka.common.serialization.Serdes
-import org.apache.kafka.connect.json.{JsonDeserializer, JsonSerializer}
 import zio.blocking.Blocking
 import zio.clock.Clock
-import zio.{ExitCode, Has, RManaged, URIO, ZIO, ZLayer, console}
 import zio.console.Console
-import zio.kafka.consumer.{CommittableRecord, Consumer, ConsumerSettings, SubscribedConsumerFromEnvironment, Subscription}
+import zio.json.{DecoderOps, DeriveJsonDecoder, DeriveJsonEncoder, EncoderOps, JsonDecoder, JsonEncoder}
+import zio.kafka.consumer._
 import zio.kafka.serde.Serde
 import zio.stream.ZStream
+import zio.{ExitCode, Has, RManaged, URIO, ZIO, ZLayer, console}
 
 // Commands for Kafka broker
 //
@@ -44,7 +43,15 @@ object ZioKafka extends zio.App {
   //    ]
   // }
   case class Player(name: String, score: Int)
+  object Player {
+    implicit val decoder: JsonDecoder[Player] = DeriveJsonDecoder.gen[Player]
+    implicit val encoder: JsonEncoder[Player] = DeriveJsonEncoder.gen[Player]
+  }
   case class Match(players: Array[Player])
+  object Match {
+    implicit val decoder: JsonDecoder[Match] = DeriveJsonDecoder.gen[Match]
+    implicit val encoder: JsonEncoder[Match] = DeriveJsonEncoder.gen[Match]
+  }
 
   val teamsSerde: Serde[Any, Teams] = Serde.string.inmapM { teamsAsString =>
     ZIO.effect {
@@ -60,9 +67,11 @@ object ZioKafka extends zio.App {
     }
   }
 
-  val matchSerde: Serde[Any, Nothing] = Serde(
-    Serdes.serdeFrom(JsonSerializer[Match], JsonDeserializer[Match])
-  )
+  val matchSerde: Serde[Any, Match] = Serde.string.inmapM { matchAsString =>
+    ZIO.fromEither(matchAsString.fromJson[Match].left.map(new RuntimeException(_)))
+  } { matchAsObj =>
+    ZIO.effect(matchAsObj.toJson)
+  }
 
   val consumerSettings: ConsumerSettings =
     ConsumerSettings(List("localhost:9092"))
