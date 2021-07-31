@@ -9,8 +9,6 @@ import zio.kafka.serde.Serde
 import zio.stream.ZStream
 import zio.{ExitCode, Has, RManaged, URIO, ZIO, ZLayer, console}
 
-import java.util.UUID
-
 // Commands for Kafka broker
 //
 // docker exec -it broker bash
@@ -30,6 +28,7 @@ object ZioKafka extends zio.App {
 
   // {ITA-ENG, 1-1}
   case class Teams(p1: String, p2: String)
+
   case class Score(p1: Int, p2: Int)
 
   // {
@@ -47,13 +46,16 @@ object ZioKafka extends zio.App {
   case class Player(name: String, score: Int) {
     override def toString: String = s"$name: $score"
   }
+
   object Player {
     implicit val decoder: JsonDecoder[Player] = DeriveJsonDecoder.gen[Player]
     implicit val encoder: JsonEncoder[Player] = DeriveJsonEncoder.gen[Player]
   }
+
   case class Match(players: Array[Player]) {
     def score: String = s"${players(0)} - ${players(1)}"
   }
+
   object Match {
     implicit val decoder: JsonDecoder[Match] = DeriveJsonDecoder.gen[Match]
     implicit val encoder: JsonEncoder[Match] = DeriveJsonEncoder.gen[Match]
@@ -89,24 +91,21 @@ object ZioKafka extends zio.App {
   val consumer: ZLayer[Clock with Blocking, Throwable, Has[Consumer.Service]] =
     ZLayer.fromManaged(managedConsumer)
 
-  val matchesStreams: ZStream[Consumer, Throwable, CommittableRecord[UUID, Match]] =
-    Consumer.subscribeAnd(Subscription.topics("updates"))
-      .plainStream(Serde.uuid, matchSerde)
-
   val itaMatchesStreams: SubscribedConsumerFromEnvironment =
     Consumer.subscribeAnd(Subscription.pattern("updates|.*ITA.*".r))
 
   val partitionedMatchesStreams: SubscribedConsumerFromEnvironment =
     Consumer.subscribeAnd(Subscription.manual("updates", 1))
 
-  val stream: ZStream[Console with Consumer with Clock, Throwable, Unit] =
-    Consumer.subscribeAnd(Subscription.topics("updates-json"))
+  val matchesStreams: ZStream[Console with Any with Consumer with Clock, Throwable, Unit] =
+    Consumer.subscribeAnd(Subscription.topics("updates"))
       .plainStream(Serde.uuid, matchSerde)
-      .tap(cr => console.putStrLn(s"| ${cr.key} | ${cr.value.score} |"))
-      .map(_.offset)
+      .map(cr => (cr.value.score, cr.offset))
+      .tap { case (score, _) => console.putStrLn(s"| $score |") }
+      .map { case (_, offset) => offset }
       .aggregateAsync(Consumer.offsetBatches)
       .mapM(_.commit)
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    stream.provideSomeLayer(consumer ++ zio.console.Console.live).runDrain.exitCode
+    matchesStreams.provideSomeLayer(consumer ++ zio.console.Console.live).runDrain.exitCode
 }
