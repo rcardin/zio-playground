@@ -44,12 +44,16 @@ object ZioKafka extends zio.App {
   //      }
   //    ]
   // }
-  case class Player(name: String, score: Int)
+  case class Player(name: String, score: Int) {
+    override def toString: String = s"$name: $score"
+  }
   object Player {
     implicit val decoder: JsonDecoder[Player] = DeriveJsonDecoder.gen[Player]
     implicit val encoder: JsonEncoder[Player] = DeriveJsonEncoder.gen[Player]
   }
-  case class Match(players: Array[Player])
+  case class Match(players: Array[Player]) {
+    def score: String = s"${players(0)} - ${players(1)}"
+  }
   object Match {
     implicit val decoder: JsonDecoder[Match] = DeriveJsonDecoder.gen[Match]
     implicit val encoder: JsonEncoder[Match] = DeriveJsonEncoder.gen[Match]
@@ -96,9 +100,9 @@ object ZioKafka extends zio.App {
     Consumer.subscribeAnd(Subscription.manual("updates", 1))
 
   val stream: ZStream[Console with Consumer with Clock, Throwable, Unit] =
-    Consumer.subscribeAnd(Subscription.topics("updates"))
-      .plainStream(Serde.string, Serde.string)
-      .tap(cr => console.putStrLn(s"| ${cr.key} | ${cr.value} |"))
+    Consumer.subscribeAnd(Subscription.topics("updates-json"))
+      .plainStream(Serde.uuid, matchSerde)
+      .tap(cr => console.putStrLn(s"| ${cr.key} | ${cr.value.score} |"))
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)
       .mapM(_.commit)
