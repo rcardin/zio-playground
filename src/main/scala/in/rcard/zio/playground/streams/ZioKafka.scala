@@ -6,7 +6,7 @@ import zio.console.Console
 import zio.json.{DecoderOps, DeriveJsonDecoder, DeriveJsonEncoder, EncoderOps, JsonDecoder, JsonEncoder}
 import zio.kafka.consumer._
 import zio.kafka.serde.Serde
-import zio.stream.ZStream
+import zio.stream.ZSink
 import zio.{ExitCode, Has, RManaged, URIO, ZIO, ZLayer, console}
 
 // Commands for Kafka broker
@@ -97,15 +97,15 @@ object ZioKafka extends zio.App {
   val partitionedMatchesStreams: SubscribedConsumerFromEnvironment =
     Consumer.subscribeAnd(Subscription.manual("updates", 1))
 
-  val matchesStreams: ZStream[Console with Any with Consumer with Clock, Throwable, Unit] =
+  val matchesStreams: ZIO[Console with Any with Consumer with Clock, Throwable, Unit] =
     Consumer.subscribeAnd(Subscription.topics("updates"))
       .plainStream(Serde.uuid, matchSerde)
       .map(cr => (cr.value.score, cr.offset))
       .tap { case (score, _) => console.putStrLn(s"| $score |") }
       .map { case (_, offset) => offset }
       .aggregateAsync(Consumer.offsetBatches)
-      .mapM(_.commit)
+      .run(ZSink.foreach(_.commit))
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    matchesStreams.provideSomeLayer(consumer ++ zio.console.Console.live).runDrain.exitCode
+    matchesStreams.provideSomeLayer(consumer ++ zio.console.Console.live).exitCode
 }
