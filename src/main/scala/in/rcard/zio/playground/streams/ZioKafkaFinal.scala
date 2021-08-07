@@ -9,6 +9,8 @@ import zio.kafka.consumer._
 import zio.kafka.serde.Serde
 import zio.stream.ZSink
 
+import scala.util.{Failure, Success}
+
 // Commands for Kafka broker
 //
 // docker exec -it broker bash
@@ -62,9 +64,14 @@ object ZioKafkaFinal extends zio.App {
 
   val matchesStreams: ZIO[Console with Any with Consumer with Clock, Throwable, Unit] =
     Consumer.subscribeAnd(Subscription.topics("updates"))
-      .plainStream(Serde.uuid, matchSerde)
-      .map(cr => (cr.value.score, cr.offset))
-      .tap { case (score, _) => console.putStrLn(s"| $score |") }
+      .plainStream(Serde.uuid, matchSerde.asTry)
+      .map(cr => (cr.value, cr.offset))
+      .tap { case (tryMatch, _) =>
+        tryMatch match {
+          case Success(matchz) => console.putStrLn(s"| ${matchz.score} |")
+          case Failure(ex) => console.putStrLn(s"Poison pill ${ex.getMessage}")
+        }
+      }
       .map { case (_, offset) => offset }
       .aggregateAsync(Consumer.offsetBatches)
       .run(ZSink.foreach(_.commit))
