@@ -59,7 +59,7 @@ object ZioKafkaFinal extends zio.App {
   val managedConsumer: RManaged[Clock with Blocking, Consumer.Service] =
     Consumer.make(consumerSettings)
 
-  val consumer: ZLayer[Clock with Blocking, Throwable, Has[Consumer.Service]] =
+  val consumer: ZLayer[Clock with Blocking, Throwable, Consumer] =
     ZLayer.fromManaged(managedConsumer)
 
   val matchesStreams: ZIO[Console with Any with Consumer with Clock, Throwable, Unit] =
