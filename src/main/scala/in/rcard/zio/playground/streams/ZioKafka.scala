@@ -10,7 +10,7 @@ import zio.kafka.consumer._
 import zio.kafka.producer.{Producer, ProducerSettings}
 import zio.kafka.serde.Serde
 import zio.stream.ZSink
-import zio.{ExitCode, Has, RIO, RManaged, URIO, ZIO, ZLayer, console}
+import zio.{ExitCode, RIO, RManaged, URIO, ZIO, ZLayer, console}
 
 import java.util.UUID
 
@@ -93,7 +93,7 @@ object ZioKafka extends zio.App {
   val managedConsumer: RManaged[Clock with Blocking, Consumer.Service] =
     Consumer.make(consumerSettings)
 
-  val consumer: ZLayer[Clock with Blocking, Throwable, Has[Consumer.Service]] =
+  val consumer: ZLayer[Clock with Blocking, Throwable, Consumer] =
     ZLayer.fromManaged(managedConsumer)
 
   val itaMatchesStreams: SubscribedConsumerFromEnvironment =
@@ -102,7 +102,7 @@ object ZioKafka extends zio.App {
   val partitionedMatchesStreams: SubscribedConsumerFromEnvironment =
     Consumer.subscribeAnd(Subscription.manual("updates", 1))
 
-  val matchesStreams: ZIO[Console with Any with Consumer with Clock, Throwable, Unit] =
+  val matchesStreams: ZIO[Console with Consumer with Clock, Throwable, Unit] =
     Consumer.subscribeAnd(Subscription.topics("updates"))
       .plainStream(Serde.uuid, matchSerde)
       .map(cr => (cr.value.score, cr.offset))
@@ -129,7 +129,7 @@ object ZioKafka extends zio.App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     val program = for {
-      _ <- matchesStreams.provideSomeLayer(consumer ++ zio.console.Console.live).fork
+      _ <- matchesStreams.provideSomeLayer(consumer ++ Console.live).fork
       _ <- producerEffect.provideSomeLayer(producer) *> ZIO.sleep(5.seconds)
     } yield ()
     program.exitCode
