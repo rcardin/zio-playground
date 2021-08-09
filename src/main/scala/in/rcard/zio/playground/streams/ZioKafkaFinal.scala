@@ -1,14 +1,18 @@
 package in.rcard.zio.playground.streams
 
+import org.apache.kafka.clients.producer._
 import zio._
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
+import zio.duration.durationInt
 import zio.json._
 import zio.kafka.consumer._
+import zio.kafka.producer.{Producer, ProducerSettings}
 import zio.kafka.serde.Serde
 import zio.stream.ZSink
 
+import java.util.UUID
 import scala.util.{Failure, Success}
 
 // Commands for Kafka broker
@@ -76,6 +80,27 @@ object ZioKafkaFinal extends zio.App {
       .aggregateAsync(Consumer.offsetBatches)
       .run(ZSink.foreach(_.commit))
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    matchesStreams.provideSomeLayer(consumer ++ zio.console.Console.live).exitCode
+  val producerSettings: ProducerSettings = ProducerSettings(List("localhost:9092"))
+
+  val producer: ZLayer[Blocking, Throwable, Producer[Any, UUID, Match]] =
+    ZLayer.fromManaged(Producer.make[Any, UUID, Match](producerSettings, Serde.uuid, matchSerde))
+
+  val itaEngFinalMatchScore: Match = Match(Array(Player("ITA", 3), Player("ENG", 2)))
+  val messagesToSend: ProducerRecord[UUID, Match] =
+    new ProducerRecord(
+      "updates",
+      UUID.fromString("b91a7348-f9f0-4100-989a-cbdd2a198096"),
+      itaEngFinalMatchScore
+    )
+
+  val producerEffect: RIO[Producer[Any, UUID, Match], RecordMetadata] =
+    Producer.produce[Any, UUID, Match](messagesToSend)
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
+    val program = for {
+      _ <- matchesStreams.provideSomeLayer(consumer ++ Console.live).fork
+      _ <- producerEffect.provideSomeLayer(producer) *> ZIO.sleep(5.seconds)
+    } yield ()
+    program.exitCode
+  }
 }
