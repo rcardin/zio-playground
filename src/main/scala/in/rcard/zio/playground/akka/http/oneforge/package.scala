@@ -4,13 +4,12 @@ import akka.actor.typed.{ActorSystem, Behavior}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import de.heikoseeberger.akkahttpziojson.ZioJsonSupport.SourceOf
 import de.heikoseeberger.akkahttpziojson.ZioJsonSupport
 import zio._
 import zio.json.{DeriveJsonDecoder, JsonDecoder}
 
-import scala.concurrent.ExecutionContextExecutor
-import scala.util.{Failure, Success}
+import java.time.OffsetDateTime
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.control.NoStackTrace
 
 /**
@@ -31,8 +30,7 @@ package object oneforge {
         new Service {
 
           implicit val sys = actorSystem
-          implicit val executionContext: ExecutionContextExecutor = sys.executionContext
-
+          implicit val executionContext = sys.executionContext
           import ZioJsonSupport._
 
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
@@ -45,11 +43,19 @@ package object oneforge {
                 method = HttpMethods.GET,
                 uri = Uri("https://api.1forge.com/quotes?").withQuery(Uri.Query(params))
               )
-            )
-            response.onComplete {
-              case Success(value) =>
-                val oneForgeRate = Unmarshal(value).to[SourceOf[OneForgeRate]]
-              case Failure(exception) => ???
+            ).flatMap {
+              httpResponse =>
+                val oneForgeRate: Future[OneForgeRate] = Unmarshal(httpResponse).to[OneForgeRate]
+                oneForgeRate.map(ofr => {
+                  Rate(
+                    pair,
+                    Price(BigDecimal.decimal(ofr.p)),
+                    OffsetDateTime.now()
+                  )
+                })
+            }
+            ZIO.fromFuture(_ => response).mapError { ex =>
+              OneForgeError.System(ex)
             }
           }
         }
