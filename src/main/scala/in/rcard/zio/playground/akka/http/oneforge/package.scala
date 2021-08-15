@@ -3,7 +3,11 @@ package in.rcard.zio.playground.akka.http
 import akka.actor.typed.{ActorSystem, Behavior}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import de.heikoseeberger.akkahttpziojson.ZioJsonSupport.SourceOf
+import de.heikoseeberger.akkahttpziojson.ZioJsonSupport
 import zio._
+import zio.json.{DeriveJsonDecoder, JsonDecoder}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success}
@@ -13,14 +17,6 @@ import scala.util.control.NoStackTrace
  * Client to the online service 1Forge.
  */
 package object oneforge {
-
-  sealed trait OneForgeError extends Throwable with NoStackTrace
-
-  object OneForgeError {
-    final case object Generic extends OneForgeError
-
-    final case class System(underlying: Throwable) extends OneForgeError
-  }
 
   object OneForge {
 
@@ -37,6 +33,8 @@ package object oneforge {
           implicit val sys = actorSystem
           implicit val executionContext: ExecutionContextExecutor = sys.executionContext
 
+          import ZioJsonSupport._
+
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
             val params = Map(
               "pairs" -> s"${pair.from}/${pair.to}",
@@ -49,11 +47,30 @@ package object oneforge {
               )
             )
             response.onComplete {
-              case Success(value) => ???
+              case Success(value) =>
+                val oneForgeRate = Unmarshal(value).to[SourceOf[OneForgeRate]]
               case Failure(exception) => ???
             }
           }
         }
       }
+  }
+
+  sealed trait OneForgeError extends Throwable with NoStackTrace
+  object OneForgeError {
+    final case object Generic extends OneForgeError
+
+    final case class System(underlying: Throwable) extends OneForgeError
+  }
+
+  private case class OneForgeRate(
+    s: String,
+    p: Double,
+    b: Double,
+    a: Double,
+    t: Double)
+  private object OneForgeRate {
+    implicit val oneForgeRateDecoder: JsonDecoder[OneForgeRate] =
+      DeriveJsonDecoder.gen[OneForgeRate]
   }
 }
