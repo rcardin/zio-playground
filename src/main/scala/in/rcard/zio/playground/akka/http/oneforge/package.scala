@@ -6,10 +6,10 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import de.heikoseeberger.akkahttpziojson.ZioJsonSupport
 import zio._
-import zio.json.{DeriveJsonDecoder, JsonDecoder}
+import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 
 import java.time.OffsetDateTime
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.Future
 import scala.util.control.NoStackTrace
 
 /**
@@ -31,6 +31,7 @@ package object oneforge {
 
           implicit val sys = actorSystem
           implicit val executionContext = sys.executionContext
+
           import ZioJsonSupport._
 
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
@@ -49,7 +50,7 @@ package object oneforge {
                 oneForgeRate.map(ofr => {
                   Rate(
                     pair,
-                    Price(BigDecimal.decimal(ofr.p)),
+                    Price(BigDecimal.decimal(ofr.price)),
                     OffsetDateTime.now()
                   )
                 })
@@ -63,6 +64,7 @@ package object oneforge {
   }
 
   sealed trait OneForgeError extends Throwable with NoStackTrace
+
   object OneForgeError {
     final case object Generic extends OneForgeError
 
@@ -70,11 +72,13 @@ package object oneforge {
   }
 
   private case class OneForgeRate(
-    s: String,
-    p: Double,
-    b: Double,
-    a: Double,
-    t: Double)
+    @jsonField("s") symbol: String,
+    @jsonField("p") price: Double,
+    @jsonField("b") bid: Double,
+    @jsonField("a") ask: Double,
+    @jsonField("t") timestamp: Long
+  )
+
   private object OneForgeRate {
     implicit val oneForgeRateDecoder: JsonDecoder[OneForgeRate] =
       DeriveJsonDecoder.gen[OneForgeRate]
