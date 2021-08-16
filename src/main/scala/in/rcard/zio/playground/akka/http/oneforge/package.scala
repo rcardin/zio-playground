@@ -1,6 +1,6 @@
 package in.rcard.zio.playground.akka.http
 
-import akka.actor.typed.{ActorSystem, Behavior}
+import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -25,8 +25,8 @@ package object oneforge {
       def get(pair: Rate.Pair): IO[OneForgeError, Rate]
     }
 
-    val live: ZLayer[Has[ActorSystem[Behavior[Nothing]]], Nothing, Has[Service]] =
-      ZLayer.fromService[ActorSystem[Behavior[Nothing]], Service] { actorSystem =>
+    val live: ZLayer[Has[ActorSystem[Nothing]], Nothing, Has[Service]] =
+      ZLayer.fromService[ActorSystem[Nothing], Service] { actorSystem =>
         new Service {
 
           implicit val sys = actorSystem
@@ -37,7 +37,7 @@ package object oneforge {
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
             val params = Map(
               "pairs" -> s"${pair.from}/${pair.to}",
-              "api_key" -> ""
+              "api_key" -> "b7mNj3MOKQJ0HJPVOssc82QRN2xJgykS" // TODO Move into external configuration
             )
             val response = Http().singleRequest(
               HttpRequest(
