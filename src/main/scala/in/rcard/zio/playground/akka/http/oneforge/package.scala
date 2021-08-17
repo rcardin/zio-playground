@@ -61,6 +61,10 @@ package object oneforge {
           }
         }
       }
+
+    // Accessor method
+    def get(pair: Rate.Pair): ZIO[OneForge, OneForgeError, Rate] =
+      ZIO.accessM[OneForge](_.get.get(pair))
   }
 
   sealed trait OneForgeError extends Throwable with NoStackTrace

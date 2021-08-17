@@ -2,6 +2,8 @@ package in.rcard.zio.playground.akka.http.oneforge
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Behavior}
+import in.rcard.zio.playground.akka.http.oneforge.OneForge.OneForge
+import in.rcard.zio.playground.akka.http.oneforge.Rate.Pair
 import zio.{ExitCode, Has, Managed, UManaged, URIO, ZIO, ZLayer, ZManaged}
 
 object AkkaHttpClientApp extends zio.App {
@@ -14,6 +16,8 @@ object AkkaHttpClientApp extends zio.App {
       }
     val layeredActorSystem: ZLayer[Any, Throwable, Has[ActorSystem[Nothing]]] =
       managedActorSystem.toLayer
+
+    val result: ZIO[OneForge, OneForgeError, Rate] = OneForge.get(Pair(Currency.EUR, Currency.USD))
     ???
   }
 }
