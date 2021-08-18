@@ -46,16 +46,18 @@ package object oneforge {
               )
             ).flatMap {
               httpResponse =>
-                val oneForgeRate: Future[OneForgeRate] = Unmarshal(httpResponse).to[OneForgeRate]
-                oneForgeRate.map(ofr => {
+                val oneForgeRate: Future[List[OneForgeRate]] = Unmarshal(httpResponse).to[List[OneForgeRate]]
+                oneForgeRate.map(rateList => {
                   Rate(
                     pair,
-                    Price(BigDecimal.decimal(ofr.price)),
+                    Price(BigDecimal.decimal(rateList.head.price)),
                     OffsetDateTime.now()
                   )
                 })
             }
             ZIO.fromFuture(_ => response).mapError { ex =>
+              // TODO Use a logger
+              System.out.println(s"Error in calling OneForge API: ${ex}")
               OneForgeError.System(ex)
             }
           }
