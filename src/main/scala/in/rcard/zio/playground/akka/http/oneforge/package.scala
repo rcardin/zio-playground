@@ -38,7 +38,7 @@ package object oneforge {
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
             val params = Map(
               "pairs" -> s"${pair.from}/${pair.to}",
-              "api_key" -> "b7mNj3MOKQJ0HJPVOssc82QRN2xJgyk" // TODO Move into external configuration
+              "api_key" -> "b7mNj3MOKQJ0HJPVOssc82QRN2xJgykS" // TODO Move into external configuration
             )
             val response = Http().singleRequest(
               HttpRequest(

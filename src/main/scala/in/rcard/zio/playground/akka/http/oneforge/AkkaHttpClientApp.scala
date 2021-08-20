@@ -18,17 +18,13 @@ object AkkaHttpClientApp extends zio.App {
     val layeredActorSystem: ZLayer[Any, Throwable, Has[ActorSystem[Nothing]]] =
       managedActorSystem.toLayer
 
-//    val loggingLayer: ULayer[Logging] = Slf4jLogger.make { (context, message) =>
-//      val logFormat = "[correlation-id = %s] %s"
-//      val correlationId = LogAnnotation.CorrelationId.render(context.get(LogAnnotation.CorrelationId))
-//      logFormat.format(correlationId, message)
-//    }
+    val logging = Logging.console() >>> Logging.withRootLoggerName("akka-http-client-app")
 
     val app = for {
       rate <- OneForge.get(Pair(Currency.EUR, Currency.USD))
       _ <- putStrLn(s"The rate between EUR and USD is ${rate.price}")
     } yield ()
-    val dependencies = ((layeredActorSystem ++ Logging.console()) >>> OneForge.live) ++ Console.live
+    val dependencies = ((layeredActorSystem ++ logging) >>> OneForge.live) ++ Console.live
 
     app.provideSomeLayer(dependencies).exitCode
   }
