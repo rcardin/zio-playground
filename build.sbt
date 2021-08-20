@@ -14,6 +14,7 @@ libraryDependencies ++= Seq(
   "dev.zio"           %% "zio-streams"         % ZioVersion,
   "dev.zio"           %% "zio-kafka"           % "0.15.0",
   "dev.zio"           %% "zio-json"            % "0.1.5",
+  "dev.zio" %% "zio-logging-slf4j"             % "0.5.11",
   "dev.zio"           %% "zio-config"          % ZioConfigVersion,
   "dev.zio"           %% "zio-config-magnolia" % ZioConfigVersion,
   "dev.zio"           %% "zio-config-yaml"     % ZioConfigVersion,
@@ -21,4 +22,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream"         % AkkaVersion,
   "com.typesafe.akka" %% "akka-http"           % AkkaHttpVersion,
   "de.heikoseeberger" %% "akka-http-zio-json"  % "1.36.0",
+  "ch.qos.logback"     % "logback-classic"     % "1.2.3"
 )

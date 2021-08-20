@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import in.rcard.zio.playground.akka.http.oneforge.Rate.Pair
 import zio.console._
+import zio.logging.Logging
 import zio.{ExitCode, Has, Managed, URIO, ZIO, ZLayer, ZManaged}
 
 object AkkaHttpClientApp extends zio.App {
@@ -17,11 +18,17 @@ object AkkaHttpClientApp extends zio.App {
     val layeredActorSystem: ZLayer[Any, Throwable, Has[ActorSystem[Nothing]]] =
       managedActorSystem.toLayer
 
+//    val loggingLayer: ULayer[Logging] = Slf4jLogger.make { (context, message) =>
+//      val logFormat = "[correlation-id = %s] %s"
+//      val correlationId = LogAnnotation.CorrelationId.render(context.get(LogAnnotation.CorrelationId))
+//      logFormat.format(correlationId, message)
+//    }
+
     val app = for {
       rate <- OneForge.get(Pair(Currency.EUR, Currency.USD))
       _ <- putStrLn(s"The rate between EUR and USD is ${rate.price}")
     } yield ()
-    val dependencies = (layeredActorSystem >>> OneForge.live) ++ Console.live
+    val dependencies = ((layeredActorSystem ++ Logging.console()) >>> OneForge.live) ++ Console.live
 
     app.provideSomeLayer(dependencies).exitCode
   }

@@ -10,7 +10,7 @@ import zio.json._
 import zio.kafka.consumer._
 import zio.kafka.producer.{Producer, ProducerSettings}
 import zio.kafka.serde.Serde
-import zio.stream.ZSink
+import zio.stream._
 
 import java.util.UUID
 import scala.util.{Failure, Success}

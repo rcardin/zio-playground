@@ -7,6 +7,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import de.heikoseeberger.akkahttpziojson.ZioJsonSupport
 import zio._
 import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
+import zio.logging.{Logger, Logging}
 
 import java.time.OffsetDateTime
 import scala.concurrent.Future
@@ -25,8 +26,8 @@ package object oneforge {
       def get(pair: Rate.Pair): IO[OneForgeError, Rate]
     }
 
-    val live: ZLayer[Has[ActorSystem[Nothing]], Nothing, Has[Service]] =
-      ZLayer.fromService[ActorSystem[Nothing], Service] { actorSystem =>
+    val live: ZLayer[Has[ActorSystem[Nothing]] with Logging, Nothing, Has[Service]] =
+      ZLayer.fromServices[ActorSystem[Nothing], Logger[String], Service] { (actorSystem, log) =>
         new Service {
 
           implicit val sys = actorSystem
@@ -37,7 +38,7 @@ package object oneforge {
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
             val params = Map(
               "pairs" -> s"${pair.from}/${pair.to}",
-              "api_key" -> "b7mNj3MOKQJ0HJPVOssc82QRN2xJgykS" // TODO Move into external configuration
+              "api_key" -> "b7mNj3MOKQJ0HJPVOssc82QRN2xJgyk" // TODO Move into external configuration
             )
             val response = Http().singleRequest(
               HttpRequest(
@@ -56,8 +57,7 @@ package object oneforge {
                 })
             }
             ZIO.fromFuture(_ => response).mapError { ex =>
-              // TODO Use a logger
-              System.out.println(s"Error in calling OneForge API: ${ex}")
+              log.error("Error calling the 1Forge API", Cause.Fail(ex))
               OneForgeError.System(ex)
             }
           }
