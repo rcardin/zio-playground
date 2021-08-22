@@ -1,4 +1,4 @@
-package in.rcard.zio.playground.akka.http.oneforge
+package in.rcard.zio.playground.akka.http.oneforge.config
 
 import zio.config.ConfigDescriptor._
 import zio.config._
@@ -7,6 +7,7 @@ import zio.config._
 // using zio-config-yaml :(
 object OneForgeConfigs {
   case class Client(uri: String, apiKey: String)
+
   object Client {
     val descriptor = ConfigDescriptor.nested("oneforge") {
       ConfigDescriptor.nested("client") {

@@ -1,4 +1,4 @@
-package in.rcard.zio.playground.akka.http.oneforge
+package in.rcard.zio.playground.akka.http.oneforge.domain
 
 sealed trait Currency
 

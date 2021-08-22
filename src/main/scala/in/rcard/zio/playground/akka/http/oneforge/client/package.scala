@@ -1,13 +1,15 @@
-package in.rcard.zio.playground.akka.http
+package in.rcard.zio.playground.akka.http.oneforge
 
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import de.heikoseeberger.akkahttpziojson.ZioJsonSupport
-import zio._
+import in.rcard.zio.playground.akka.http.oneforge.config.OneForgeConfigs
+import in.rcard.zio.playground.akka.http.oneforge.domain.{Price, Rate}
 import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 import zio.logging.{Logger, Logging}
+import zio.{Cause, Has, IO, ZIO, ZLayer}
 
 import java.time.OffsetDateTime
 import scala.concurrent.{ExecutionContext, Future}
@@ -16,7 +18,7 @@ import scala.util.control.NoStackTrace
 /**
  * Client to the online service 1Forge.
  */
-package object oneforge {
+package object client {
 
   object OneForge {
 
@@ -29,25 +31,25 @@ package object oneforge {
     val live: ZLayer[Has[ActorSystem[Nothing]] with Logging with Has[OneForgeConfigs.Client], Nothing, Has[Service]] =
       ZLayer.fromServices[ActorSystem[Nothing], Logger[String], OneForgeConfigs.Client, Service] {
         (actorSystem, log, config) =>
-        new Service {
+          new Service {
 
-          implicit val sys = actorSystem
-          implicit val executionContext = sys.executionContext
+            implicit val sys = actorSystem
+            implicit val executionContext = sys.executionContext
 
-          override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
-            val params = Map(
-              "pairs" -> s"${pair.from}/${pair.to}",
-              "api_key" -> config.apiKey
-            )
-            val response = callOneForge(config, params).flatMap {
-              transformHttpResponseToRate(pair)
-            }
-            ZIO.fromFuture(_ => response).mapError { ex =>
-              log.error("Error calling the 1Forge API", Cause.Fail(ex))
-              OneForgeError.System(ex)
+            override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
+              val params = Map(
+                "pairs" -> s"${pair.from}/${pair.to}",
+                "api_key" -> config.apiKey
+              )
+              val response = callOneForge(config, params).flatMap {
+                transformHttpResponseToRate(pair)
+              }
+              ZIO.fromFuture(_ => response).mapError { ex =>
+                log.error("Error calling the 1Forge API", Cause.Fail(ex))
+                OneForgeError.System(ex)
+              }
             }
           }
-        }
       }
 
     private def callOneForge(config: OneForgeConfigs.Client, params: Map[String, String])(implicit sys: ActorSystem[Nothing]) = {
@@ -60,7 +62,7 @@ package object oneforge {
     }
 
     private def transformHttpResponseToRate(pair: Rate.Pair)
-                      (implicit sys: ActorSystem[Nothing], ec: ExecutionContext) = {
+                                           (implicit sys: ActorSystem[Nothing], ec: ExecutionContext) = {
       (httpResponse: HttpResponse) =>
 
         import ZioJsonSupport._
@@ -89,12 +91,12 @@ package object oneforge {
   }
 
   private case class OneForgeRate(
-    @jsonField("s") symbol: String,
-    @jsonField("p") price: Double,
-    @jsonField("b") bid: Double,
-    @jsonField("a") ask: Double,
-    @jsonField("t") timestamp: Long
-  )
+                                   @jsonField("s") symbol: String,
+                                   @jsonField("p") price: Double,
+                                   @jsonField("b") bid: Double,
+                                   @jsonField("a") ask: Double,
+                                   @jsonField("t") timestamp: Long
+                                 )
 
   private object OneForgeRate {
     implicit val oneForgeRateDecoder: JsonDecoder[OneForgeRate] =

@@ -2,12 +2,16 @@ package in.rcard.zio.playground.akka.http.oneforge
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import in.rcard.zio.playground.akka.http.oneforge.Rate.Pair
+import in.rcard.zio.playground.akka.http.oneforge.client.OneForge
+import in.rcard.zio.playground.akka.http.oneforge.client.OneForge.OneForge
+import in.rcard.zio.playground.akka.http.oneforge.config.OneForgeConfigs
+import in.rcard.zio.playground.akka.http.oneforge.domain.Currency
+import in.rcard.zio.playground.akka.http.oneforge.domain.Rate.Pair
 import zio.clock.Clock
 import zio.config.yaml.YamlConfig
 import zio.console._
 import zio.logging.Logging
-import zio.{ExitCode, Has, Managed, URIO, ZIO, ZLayer, ZManaged}
+import zio.{ExitCode, Has, URIO, ZIO, ZLayer, ZManaged}
 
 import scala.io.Source
 
@@ -19,10 +23,10 @@ object AkkaHttpClientApp extends zio.App {
       _    <- putStrLn(s"The rate between EUR and USD is ${rate.price}")
     } yield ()
 
-    app.provideSomeLayer(environment()).exitCode
+    app.provideSomeLayer(provideEnvironment()).exitCode
   }
 
-  private def environment(): ZLayer[Any with Console with Clock, Throwable, Has[OneForge.Service] with Console] = {
+  private def provideEnvironment(): ZLayer[Any with Console with Clock, Throwable, OneForge with Console] = {
     val actorSystem: ZLayer[Any, Throwable, Has[ActorSystem[Nothing]]] = {
       lazy val akkaStart = ZIO.effect(ActorSystem(Behaviors.empty, "AkkaHttpZio"))
       lazy val akkaStop = (sys: ActorSystem[Nothing]) => ZIO.effect(sys.terminate()).orDie
