@@ -8,7 +8,6 @@ import zio.console._
 import zio.logging.Logging
 import zio.{ExitCode, Has, Managed, URIO, ZIO, ZLayer, ZManaged}
 
-import java.io.File
 import scala.io.Source
 
 object AkkaHttpClientApp extends zio.App {
@@ -24,7 +23,7 @@ object AkkaHttpClientApp extends zio.App {
 
     val configLayer = YamlConfig.fromString(
       Source.fromResource("application.yml").mkString,
-      OneForgeConfig.descriptor
+      OneForgeConfigs.Client.descriptor
     )
 
     val logging = Logging.console() >>> Logging.withRootLoggerName("akka-http-client-app")

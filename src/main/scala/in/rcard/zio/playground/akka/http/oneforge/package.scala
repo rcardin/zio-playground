@@ -26,8 +26,8 @@ package object oneforge {
       def get(pair: Rate.Pair): IO[OneForgeError, Rate]
     }
 
-    val live: ZLayer[Has[ActorSystem[Nothing]] with Logging with Has[OneForgeConfig], Nothing, Has[Service]] =
-      ZLayer.fromServices[ActorSystem[Nothing], Logger[String], OneForgeConfig, Service] { (actorSystem, log, config) =>
+    val live: ZLayer[Has[ActorSystem[Nothing]] with Logging with Has[OneForgeConfigs.Client], Nothing, Has[Service]] =
+      ZLayer.fromServices[ActorSystem[Nothing], Logger[String], OneForgeConfigs.Client, Service] { (actorSystem, log, config) =>
         new Service {
 
           implicit val sys = actorSystem
@@ -38,12 +38,12 @@ package object oneforge {
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
             val params = Map(
               "pairs" -> s"${pair.from}/${pair.to}",
-              "api_key" -> config.client.apiKey // TODO Narrow or use lenses
+              "api_key" -> config.apiKey
             )
             val response = Http().singleRequest(
               HttpRequest(
                 method = HttpMethods.GET,
-                uri = Uri(config.client.uri).withQuery(Uri.Query(params))
+                uri = Uri(config.uri).withQuery(Uri.Query(params))
               )
             ).flatMap {
               httpResponse =>

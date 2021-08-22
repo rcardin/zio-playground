@@ -1,9 +1,27 @@
 package in.rcard.zio.playground.akka.http.oneforge
 
-import zio.config.magnolia.DeriveConfigDescriptor
+import zio.config.ConfigDescriptor._
+import zio.config._
 
-case class OneForgeConfig(client: Client)
-object OneForgeConfig {
-  val descriptor = DeriveConfigDescriptor.descriptor[OneForgeConfig]
+object OneForgeConfigs {
+  case class Client(uri: String, apiKey: String)
+  object Client {
+    val descriptor = ConfigDescriptor.nested("oneforge") {
+      ConfigDescriptor.nested("client") {
+        (string("uri") |@| string("api-key")) (
+          Client.apply,
+          Client.unapply
+        )
+      }
+    }
+  }
 }
-case class Client(uri: String, apiKey: String)
+
+//case class OneForgeConfig(client: Client)
+//object OneForgeConfig {
+//  val descriptor = ConfigDescriptor.nested("client")
+//}
+//case class Client(uri: String, apiKey: String)
+//object Client {
+//  val descriptor = DeriveConfigDescriptor.descriptor[Client]
+//}
