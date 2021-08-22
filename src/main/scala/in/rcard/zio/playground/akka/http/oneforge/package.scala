@@ -10,7 +10,7 @@ import zio.json.{DeriveJsonDecoder, JsonDecoder, jsonField}
 import zio.logging.{Logger, Logging}
 
 import java.time.OffsetDateTime
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 
 /**
@@ -27,34 +27,20 @@ package object oneforge {
     }
 
     val live: ZLayer[Has[ActorSystem[Nothing]] with Logging with Has[OneForgeConfigs.Client], Nothing, Has[Service]] =
-      ZLayer.fromServices[ActorSystem[Nothing], Logger[String], OneForgeConfigs.Client, Service] { (actorSystem, log, config) =>
+      ZLayer.fromServices[ActorSystem[Nothing], Logger[String], OneForgeConfigs.Client, Service] {
+        (actorSystem, log, config) =>
         new Service {
 
           implicit val sys = actorSystem
           implicit val executionContext = sys.executionContext
-
-          import ZioJsonSupport._
 
           override def get(pair: Rate.Pair): IO[OneForgeError, Rate] = {
             val params = Map(
               "pairs" -> s"${pair.from}/${pair.to}",
               "api_key" -> config.apiKey
             )
-            val response = Http().singleRequest(
-              HttpRequest(
-                method = HttpMethods.GET,
-                uri = Uri(config.uri).withQuery(Uri.Query(params))
-              )
-            ).flatMap {
-              httpResponse =>
-                val oneForgeRate: Future[List[OneForgeRate]] = Unmarshal(httpResponse).to[List[OneForgeRate]]
-                oneForgeRate.map(rateList => {
-                  Rate(
-                    pair,
-                    Price(BigDecimal.decimal(rateList.head.price)),
-                    OffsetDateTime.now()
-                  )
-                })
+            val response = callOneForge(config, params).flatMap {
+              transformHttpResponseToRate(pair)
             }
             ZIO.fromFuture(_ => response).mapError { ex =>
               log.error("Error calling the 1Forge API", Cause.Fail(ex))
@@ -63,6 +49,31 @@ package object oneforge {
           }
         }
       }
+
+    private def callOneForge(config: OneForgeConfigs.Client, params: Map[String, String])(implicit sys: ActorSystem[Nothing]) = {
+      Http().singleRequest(
+        HttpRequest(
+          method = HttpMethods.GET,
+          uri = Uri(config.uri).withQuery(Uri.Query(params))
+        )
+      )
+    }
+
+    private def transformHttpResponseToRate(pair: Rate.Pair)
+                      (implicit sys: ActorSystem[Nothing], ec: ExecutionContext) = {
+      (httpResponse: HttpResponse) =>
+
+        import ZioJsonSupport._
+
+        val oneForgeRate: Future[List[OneForgeRate]] = Unmarshal(httpResponse).to[List[OneForgeRate]]
+        oneForgeRate.map(rateList => {
+          Rate(
+            pair,
+            Price(BigDecimal.decimal(rateList.head.price)),
+            OffsetDateTime.now()
+          )
+        })
+    }
 
     // Accessor method
     def get(pair: Rate.Pair): ZIO[OneForge, OneForgeError, Rate] =
